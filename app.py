@@ -14,9 +14,8 @@ TIKWM_API = "https://www.tikwm.com/api/"
 
 @app.route('/api/download', methods=['GET'])
 def api_download():
-    # La app de Android manda los datos por la URL (GET)
     url = request.args.get('url', '').strip()
-    kind = request.args.get('kind', 'audio') # 'audio' o 'video'
+    kind = request.args.get('kind', 'audio') 
 
     if not url:
         return "Falta la URL", 400
@@ -24,49 +23,45 @@ def api_download():
     timestamp = int(time.time() * 1000)
 
     try:
-        # LOGICA PARA TIKTOK (VIDEO)
-        if 'tiktok.com' in url.lower() and kind == 'video':
+        # --- LÓGICA TIKTOK ---
+        if 'tiktok.com' in url.lower():
             res = requests.post(TIKWM_API, data={'url': url, 'hd': 1}, timeout=30)
             if res.status_code == 200:
                 data = res.json().get('data', {})
                 video_url = data.get('hdplay') or data.get('play')
-                
                 if video_url:
                     video_path = os.path.join(DOWNLOAD_DIR, f'tiktok_{timestamp}.mp4')
                     vid_res = requests.get(video_url, stream=True)
                     with open(video_path, 'wb') as f:
-                        for chunk in vid_res.iter_content(chunk_size=8192):
-                            f.write(chunk)
+                        for chunk in vid_res.iter_content(chunk_size=8192): f.write(chunk)
                     return send_file(video_path, as_attachment=True, download_name=f'tiktok_{timestamp}.mp4')
 
-        # LOGICA PARA YOUTUBE (AUDIO)
-        if kind == 'audio':
+        # --- LÓGICA YOUTUBE (Videos, Shorts y Audio) ---
+        if 'youtube.com' in url.lower() or 'youtu.be' in url.lower():
+            ext = 'mp3' if kind == 'audio' else 'mp4'
             output_template = os.path.join(DOWNLOAD_DIR, f'yt_{timestamp}.%(ext)s')
             
-            # --- MAGIA DE LAS COOKIES ---
-            cookie_file_path = 'cookies.txt'
-            
             ydl_opts = {
-                # --- LA LÍNEA MÁGICA QUE EVITA EL ERROR DE FORMATO ---
-                'format': 'm4a/bestaudio/ext:m4a/ba/best',
                 'outtmpl': output_template,
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
                 'quiet': True,
                 'no_warnings': True,
+                'cookiefile': 'cookies.txt' if os.path.exists('cookies.txt') else None
             }
-            
-            # Si el archivo de cookies existe, se lo pasamos a yt-dlp
-            if os.path.exists(cookie_file_path):
-                ydl_opts['cookiefile'] = cookie_file_path
+
+            if kind == 'audio':
+                ydl_opts['format'] = 'm4a/bestaudio/ext:m4a/ba/best'
+                ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]
             else:
-                print("ADVERTENCIA: No se encontró cookies.txt. YouTube podría bloquear la descarga.")
+                # Formato optimizado para Shorts y Videos MP4
+                ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
                 
+            # Buscar el archivo generado
             for file in os.listdir(DOWNLOAD_DIR):
-                if file.startswith(f'yt_{timestamp}') and file.endswith('.mp3'):
-                    return send_file(os.path.join(DOWNLOAD_DIR, file), as_attachment=True, download_name=f'yt_{timestamp}.mp3')
+                if file.startswith(f'yt_{timestamp}') and file.endswith(f'.{ext}'):
+                    return send_file(os.path.join(DOWNLOAD_DIR, file), as_attachment=True, download_name=f'luckxit_{timestamp}.{ext}')
 
         return "No se pudo procesar el enlace", 500
 
