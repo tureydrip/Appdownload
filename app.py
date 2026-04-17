@@ -42,6 +42,11 @@ def api_download():
         # LOGICA PARA YOUTUBE (AUDIO)
         if kind == 'audio':
             output_template = os.path.join(DOWNLOAD_DIR, f'yt_{timestamp}.%(ext)s')
+            
+            # --- AQUÍ ESTÁ LA MAGIA DE LAS COOKIES ---
+            # La ruta asume que el archivo cookies.txt está en la misma carpeta que este script
+            cookie_file_path = 'cookies.txt'
+            
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'outtmpl': output_template,
@@ -50,6 +55,12 @@ def api_download():
                 'no_warnings': True,
             }
             
+            # Si el archivo existe, se lo pasamos a yt-dlp
+            if os.path.exists(cookie_file_path):
+                ydl_opts['cookiefile'] = cookie_file_path
+            else:
+                print("ADVERTENCIA: No se encontró cookies.txt. YouTube podría bloquear la descarga.")
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
                 
