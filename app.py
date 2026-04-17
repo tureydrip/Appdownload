@@ -43,19 +43,19 @@ def api_download():
         if kind == 'audio':
             output_template = os.path.join(DOWNLOAD_DIR, f'yt_{timestamp}.%(ext)s')
             
-            # --- AQUÍ ESTÁ LA MAGIA DE LAS COOKIES ---
-            # La ruta asume que el archivo cookies.txt está en la misma carpeta que este script
+            # --- MAGIA DE LAS COOKIES ---
             cookie_file_path = 'cookies.txt'
             
             ydl_opts = {
-                'format': 'bestaudio/best',
+                # --- LA LÍNEA MÁGICA QUE EVITA EL ERROR DE FORMATO ---
+                'format': 'm4a/bestaudio/ext:m4a/ba/best',
                 'outtmpl': output_template,
                 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
                 'quiet': True,
                 'no_warnings': True,
             }
             
-            # Si el archivo existe, se lo pasamos a yt-dlp
+            # Si el archivo de cookies existe, se lo pasamos a yt-dlp
             if os.path.exists(cookie_file_path):
                 ydl_opts['cookiefile'] = cookie_file_path
             else:
